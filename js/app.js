@@ -979,5 +979,15 @@ document.addEventListener('input', (e) => {
 });
 
 // ---------- Start ----------
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+// Neue App-Version: Seite einmal neu laden, sobald der neue Service Worker übernimmt
+if ('serviceWorker' in navigator) {
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => reg.update()).catch(() => {});
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController && !sessionStorage.getItem('sw-reloaded')) {
+      sessionStorage.setItem('sw-reloaded', '1');
+      location.reload();
+    }
+  });
+}
 render();
