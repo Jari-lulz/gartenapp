@@ -355,7 +355,7 @@ function analysisHtml(a, withTitle) {
         <p>Tipp: Näher rangehen, bei Tageslicht und scharf fotografieren – am besten Blätter und Blüte.</p>
       </div>`;
   }
-  const conf = { hoch: '✓ ziemlich sicher', mittel: 'wahrscheinlich', niedrig: 'unsicher' }[a.sicherheit] || '';
+  const conf = { hoch: 'ziemlich sicher', mittel: 'wahrscheinlich', niedrig: 'unsicher' }[a.sicherheit] || '';
   const healthClass = { gesund: 'good', 'leichte Probleme': 'info', krank: 'warn' }[a.zustand] || 'info';
   const care = a.pflege || {};
   const sb = a.steckbrief;
@@ -367,10 +367,10 @@ function analysisHtml(a, withTitle) {
       <h1>${esc(a.name)}</h1>
       ${a.botanisch ? `<p class="latin">${esc(a.botanisch)}</p>` : ''}
     </div>` : ''}
-    <p class="chips">
-      <span class="chip ${a.sicherheit === 'hoch' ? '' : 'soft'}">${conf}</span>
-      ${a.stadium ? `<span class="chip">🌱 ${esc(a.stadium)}</span>` : ''}
-    </p>
+    <div class="facts">
+      <div class="fact ${a.sicherheit === 'hoch' ? '' : 'soft'}"><span>Erkennung</span><b>${a.sicherheit === 'hoch' ? '✓ ' : ''}${conf}</b></div>
+      ${a.stadium ? `<div class="fact"><span>Stadium</span><b>🌱 ${esc(a.stadium)}</b></div>` : ''}
+    </div>
     ${a.sicherheit !== 'hoch' && a.alternativen?.length ? `<p class="muted small">Könnte auch sein: ${esc(a.alternativen.join(', '))}</p>` : ''}
     ${healthy
       ? `<div class="healthy">🟢 <div><b>Sieht gesund aus</b>${a.zustand_text ? `<span>${esc(a.zustand_text)}</span>` : ''}</div></div>`
