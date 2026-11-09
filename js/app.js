@@ -67,26 +67,29 @@ function viewOnboarding() {
   const ready = o.name.trim() && o.loc;
   return `
     <section class="hero onboarding">
-      <div class="onb-icon">🌿</div>
-      <h1>Willkommen!</h1>
-      <p class="hero-date">Zwei kurze Fragen, dann geht es los. Die Antworten bleiben nur auf diesem Handy.</p>
+      <div class="onb-head">
+        <div class="onb-icon">🌿</div>
+        <div>
+          <h1>Willkommen!</h1>
+          <p class="hero-date">Zwei kurze Fragen – alles bleibt auf diesem Handy.</p>
+        </div>
+      </div>
     </section>
-    <div class="page">
+    <div class="page onb">
       <div class="card">
         <h3>1. Wie heißt du?</h3>
         <input name="onb-name" data-input="onb-name" value="${esc(o.name)}" placeholder="Dein Vorname" autocomplete="given-name">
       </div>
       <div class="card">
         <h3>2. Wo ist dein Garten?</h3>
-        <p class="muted small">Für Wetter und Frostwarnungen. Ort oder Adresse eingeben – oder im Garten auf „Standort verwenden“ tippen.</p>
         ${o.loc ? `<div class="picked">📍 <div><b>${esc(o.loc.name)}</b><span class="muted small">${esc(o.loc.label || '')}</span></div><button class="btn small" data-action="onb-change">Ändern</button></div>` : `
         <form class="inline" data-form="onb-search">
-          <input name="q" placeholder="z. B. Gartenstraße 5, Musterstadt" autocomplete="street-address">
+          <input name="q" placeholder="Ort oder Adresse" autocomplete="street-address">
           <button class="btn secondary" type="submit">Suchen</button>
         </form>
         ${o.results.map((r, i) => `<button class="btn list" data-action="onb-pick" data-i="${i}"><span><b>${esc(r.name)}</b><br><span class="muted small">${esc(r.label)}</span></span></button>`).join('')}
-        <button class="btn secondary wide" data-action="onb-gps">${ICON.pin}<span>Aktuellen Standort verwenden</span></button>`}
-        ${o.msg ? `<p class="status">${esc(o.msg)}</p>` : ''}
+        <button class="btn secondary wide" data-action="onb-gps">${ICON.pin}<span>Standort verwenden</span></button>`}
+        ${o.msg ? `<p class="status">${esc(o.msg)}</p>` : '<p class="muted small onb-note">Für Wetter und Frostwarnungen.</p>'}
       </div>
       <button class="btn primary big" data-action="onb-done" ${ready ? '' : 'disabled'}>Los geht's</button>
     </div>`;
