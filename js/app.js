@@ -3,7 +3,7 @@ import * as ai from './gemini.js';
 import * as wx from './weather.js';
 import { prepareImage } from './image.js';
 import { settings } from './settings.js';
-import { OWNER, HOME_LOCATION } from './config.js';
+import { OWNER, HOME_LOCATION, APP_URL } from './config.js';
 import { esc, uid } from './util.js';
 import {
   ICON, SpeechRec, canSpeak, fmtDate, byName, healthDot, md, appBar, cover, bottomBar, micButton,
@@ -671,7 +671,7 @@ async function shareBackup() {
 }
 
 async function shareSetupLink() {
-  const url = `${location.origin}${location.pathname}#setup=${encodeURIComponent(settings.apiKey)}`;
+  const url = `${APP_URL}#setup=${encodeURIComponent(settings.apiKey)}`;
   const text = `Hallo ${OWNER}! Tippe auf diesen Link, dann ist deine Garten-App fertig eingerichtet:\n${url}`;
   if (navigator.share) {
     try { await navigator.share({ title: `${OWNER}s Garten`, text }); } catch { /* abgebrochen */ }
