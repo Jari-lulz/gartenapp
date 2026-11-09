@@ -1,0 +1,177 @@
+/* =====================================================================
+   3D-Glas in Mintgrün – dickes, glänzendes Glas mit Tiefe:
+   heller Glanz oben, weiches Leuchten innen, helle Kante, dunklere Tiefe unten.
+   Wird nach jade.css geladen.
+   ===================================================================== */
+:root {
+  --mint-1: #d2fbe2;
+  --mint-2: #8ef0b8;
+  --mint-3: #4fdc8e;
+  --mint-4: #27b06b;
+  --mint-ink: #0c4a2b;
+  --g3d-rim: inset 0 2px 1px rgba(255, 255, 255, .95), inset 0 0 0 1px rgba(255, 255, 255, .55);
+  --g3d-depth: inset 0 -9px 18px rgba(22, 130, 76, .30), inset 9px 0 18px rgba(255, 255, 255, .20), inset -9px 0 18px rgba(30, 150, 90, .14);
+  --g3d-drop: 0 12px 28px rgba(42, 168, 106, .30), 0 2px 5px rgba(12, 74, 43, .10);
+}
+
+/* ---------- Hauptknöpfe: kräftiges Mint-Glas ---------- */
+.btn.primary {
+  color: var(--mint-ink);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .65);
+  background:
+    radial-gradient(55% 60% at 50% 45%, rgba(255, 255, 255, .28), rgba(255, 255, 255, 0) 70%),
+    radial-gradient(120% 80% at 50% 125%, rgba(32, 150, 92, .55), rgba(32, 150, 92, 0) 62%),
+    linear-gradient(170deg, var(--mint-1) 0%, var(--mint-2) 34%, var(--mint-3) 74%, var(--mint-4) 100%);
+  border: 1px solid rgba(255, 255, 255, .75);
+  border-radius: 24px;
+  box-shadow: var(--g3d-rim), var(--g3d-depth), var(--g3d-drop);
+}
+.btn.primary svg { filter: drop-shadow(0 1px 0 rgba(255, 255, 255, .6)); }
+/* Glanzfläche oben wie auf dem Glaskörper */
+.btn.primary::before {
+  inset: 3px 9px auto 9px;
+  height: 50%;
+  border-radius: 20px 20px 45% 45% / 20px 20px 22px 22px;
+  background: linear-gradient(rgba(255, 255, 255, .9), rgba(255, 255, 255, .1));
+}
+.btn.primary:active { box-shadow: var(--g3d-rim), inset 0 -4px 10px rgba(22, 130, 76, .35), 0 5px 12px rgba(42, 168, 106, .3); }
+
+/* ---------- Nebenknöpfe: helleres, klareres Glas ---------- */
+.btn.secondary, .icon-btn {
+  color: var(--mint-ink);
+  background:
+    radial-gradient(120% 80% at 50% 125%, rgba(95, 216, 151, .35), rgba(95, 216, 151, 0) 60%),
+    linear-gradient(170deg, rgba(244, 255, 249, .95) 0%, rgba(208, 248, 226, .8) 50%, rgba(160, 232, 192, .65) 100%);
+  border: 1px solid rgba(255, 255, 255, .9);
+  box-shadow: var(--g3d-rim), inset 0 -6px 14px rgba(42, 168, 106, .2), 0 8px 20px rgba(42, 168, 106, .18), 0 1px 3px rgba(12, 74, 43, .08);
+}
+.btn.secondary::before, .icon-btn:not(.placeholder)::before {
+  inset: 2px 7px auto 7px;
+  height: 50%;
+  border-radius: 16px 16px 40% 40% / 16px 16px 16px 16px;
+  background: linear-gradient(rgba(255, 255, 255, .85), rgba(255, 255, 255, 0));
+}
+.icon-btn:not(.placeholder)::before { inset: 2px 6px auto 6px; border-radius: 50% 50% 40% 40%; }
+.icon-btn.light {
+  color: #fff;
+  background: linear-gradient(170deg, rgba(214, 251, 229, .38), rgba(95, 216, 151, .18));
+  border: 1px solid rgba(255, 255, 255, .55);
+  box-shadow: inset 0 2px 1px rgba(255, 255, 255, .6), inset 0 -5px 10px rgba(10, 60, 35, .25), 0 6px 14px rgba(5, 40, 22, .2);
+}
+.icon-btn.send, .icon-btn.mic.listening { color: var(--mint-ink); }
+.icon-btn.send {
+  background: linear-gradient(170deg, var(--mint-1), var(--mint-3) 70%, var(--mint-4));
+  box-shadow: var(--g3d-rim), var(--g3d-depth), 0 6px 16px rgba(42, 168, 106, .3);
+}
+.icon-btn.mic.listening { background: linear-gradient(170deg, #ffd9d4, #f07a6c 70%, #d64535); color: #fff; }
+
+/* ---------- Kacheln: dickes, blasses Mint-Glas ---------- */
+.card {
+  background:
+    radial-gradient(130% 70% at 50% 120%, rgba(95, 216, 151, .22), rgba(95, 216, 151, 0) 60%),
+    linear-gradient(170deg, rgba(248, 255, 251, .94) 0%, rgba(226, 251, 237, .82) 45%, rgba(190, 240, 213, .64) 100%);
+  border: 1px solid rgba(255, 255, 255, .95);
+  border-radius: 28px;
+  box-shadow:
+    inset 0 2px 1px #fff,
+    inset 0 0 0 1px rgba(255, 255, 255, .45),
+    inset 0 -12px 26px rgba(42, 168, 106, .12),
+    inset 12px 0 24px rgba(255, 255, 255, .25),
+    0 16px 36px rgba(42, 168, 106, .16),
+    0 2px 6px rgba(12, 74, 43, .06);
+}
+.card::before {
+  inset: 3px 12px auto 12px;
+  height: 36%;
+  border-radius: 24px 24px 50% 50% / 24px 24px 28px 28px;
+  background: linear-gradient(rgba(255, 255, 255, .75), rgba(255, 255, 255, 0));
+}
+/* Farbige Kacheln behalten ihre Farbe, bekommen aber denselben Glaskörper */
+.card.setup { background: linear-gradient(170deg, rgba(232, 253, 241, .95), rgba(170, 236, 199, .7)); }
+.card.health.good { background: linear-gradient(170deg, rgba(240, 255, 246, .95), rgba(176, 236, 203, .72)); }
+.card.health.info, .card.warn { background: linear-gradient(170deg, rgba(255, 252, 238, .95), rgba(250, 226, 165, .68)); }
+.card.health.warn, .card.error { background: linear-gradient(170deg, rgba(255, 245, 243, .95), rgba(248, 196, 188, .68)); }
+.card.todo { border: 1px solid rgba(255, 255, 255, .95); }
+.entry .card { border: 1px solid rgba(255, 255, 255, .9); }
+
+.hint, .banner, .healthy {
+  border: 1px solid rgba(255, 255, 255, .9);
+  border-radius: 26px;
+  box-shadow: inset 0 2px 1px rgba(255, 255, 255, .95), inset 0 -10px 22px rgba(0, 0, 0, .04), 0 14px 30px rgba(42, 168, 106, .12);
+}
+.hint { border-left-width: 6px; }
+.hint.warn { border-left-color: #e3655b; }
+.hint.info { border-left-color: var(--sun); }
+.hint.good { border-left-color: var(--mint-4); }
+.healthy { background: linear-gradient(170deg, rgba(244, 255, 248, .95), rgba(180, 238, 206, .7)); }
+
+/* ---------- Symbolfelder als Glaswürfel ---------- */
+.ic, .step-icon, .plan-icon, .empty-icon, .onb-icon, .area-icon {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, .85);
+  box-shadow: inset 0 2px 1px rgba(255, 255, 255, .95), inset 0 -6px 12px rgba(22, 130, 76, .25), inset 6px 0 10px rgba(255, 255, 255, .25), 0 8px 18px rgba(42, 168, 106, .25);
+}
+.ic, .step-icon, .plan-icon, .empty-icon {
+  background:
+    radial-gradient(120% 80% at 50% 125%, rgba(32, 150, 92, .35), rgba(32, 150, 92, 0) 60%),
+    linear-gradient(170deg, var(--mint-1) 0%, var(--mint-2) 45%, var(--mint-3) 100%);
+}
+.onb-icon {
+  background: linear-gradient(170deg, rgba(214, 251, 229, .5), rgba(95, 216, 151, .3));
+  border-color: rgba(255, 255, 255, .6);
+}
+.ic { border-radius: 16px; }
+
+/* ---------- Kleine Glaselemente ---------- */
+.chip {
+  background: linear-gradient(170deg, rgba(246, 255, 250, .95), rgba(190, 242, 214, .8));
+  border: 1px solid rgba(255, 255, 255, .95);
+  box-shadow: inset 0 1px 0 #fff, inset 0 -3px 6px rgba(42, 168, 106, .14), 0 3px 8px rgba(42, 168, 106, .12);
+  color: var(--mint-ink);
+}
+.chip-btn {
+  background: linear-gradient(170deg, rgba(248, 255, 251, .95), rgba(208, 248, 226, .8));
+  border: 1px solid rgba(255, 255, 255, .95);
+  box-shadow: inset 0 1px 0 #fff, inset 0 -3px 6px rgba(42, 168, 106, .14), 0 4px 10px rgba(42, 168, 106, .14);
+  color: var(--mint-ink);
+}
+.plant-card {
+  border: 1px solid rgba(255, 255, 255, .85);
+  border-radius: 26px;
+  box-shadow: inset 0 2px 1px rgba(255, 255, 255, .6), 0 14px 30px rgba(42, 168, 106, .2), 0 2px 6px rgba(12, 74, 43, .08);
+}
+.plant-card .badge { box-shadow: inset 0 1px 0 #fff, 0 3px 8px rgba(0, 0, 0, .15); }
+.msg.user { background: linear-gradient(170deg, var(--mint-2), var(--mint-4)); color: var(--mint-ink); text-shadow: 0 1px 0 rgba(255, 255, 255, .5); }
+.msg.model { background: linear-gradient(170deg, rgba(246, 255, 250, .95), rgba(200, 244, 220, .8)); border: 1px solid rgba(255, 255, 255, .9); }
+.steps span.now { background: linear-gradient(90deg, var(--mint-3), var(--mint-4)); }
+.steps span.done { background: var(--mint-3); }
+input:not([type=checkbox]), textarea, select {
+  background: rgba(255, 255, 255, .75);
+  border-color: rgba(255, 255, 255, .95);
+  box-shadow: inset 0 2px 4px rgba(12, 74, 43, .08), 0 1px 0 rgba(255, 255, 255, .9);
+}
+input:focus, textarea:focus, select:focus { border-color: var(--mint-3); background: #fff; }
+
+/* ---------- Kopfbereich: Glas-Wetterkacheln mit Mint-Schimmer ---------- */
+.wx {
+  background:
+    radial-gradient(120% 80% at 50% 125%, rgba(95, 216, 151, .3), rgba(95, 216, 151, 0) 60%),
+    linear-gradient(170deg, rgba(214, 251, 229, .32), rgba(47, 176, 114, .14));
+  border: 1px solid rgba(255, 255, 255, .5);
+  border-radius: 22px;
+  box-shadow: inset 0 2px 1px rgba(255, 255, 255, .55), inset 0 -6px 12px rgba(5, 40, 22, .22), 0 8px 18px rgba(5, 40, 22, .2);
+  position: relative;
+  overflow: hidden;
+}
+.wx::before {
+  content: "";
+  position: absolute;
+  inset: 2px 6px auto 6px;
+  height: 40%;
+  border-radius: 18px 18px 40% 40%;
+  background: linear-gradient(rgba(255, 255, 255, .35), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+.wx > * { position: relative; }
+.wx:first-child { background: linear-gradient(170deg, rgba(214, 251, 229, .45), rgba(47, 176, 114, .2)); }
+.hero { border-radius: 0 0 36px 36px; box-shadow: inset 0 -2px 1px rgba(255, 255, 255, .7), inset 0 -18px 30px rgba(255, 255, 255, .12), 0 16px 38px rgba(12, 56, 35, .25); }
