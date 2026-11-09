@@ -308,10 +308,13 @@ async function runAnalysis() {
   if (!p) return;
   p.status = 'loading';
   p.error = null;
+  p.retry = 0;
   rerenderIf('analyse');
   try {
     const known = p.targetId ? await db.getPlant(p.targetId) : null;
-    p.analysis = await ai.analyze(p.photo, known);
+    p.analysis = await ai.analyze(p.photo, known, {
+      onRetry: (n) => { p.retry = n; if (state.pending === p) rerenderIf('analyse'); },
+    });
     p.status = 'done';
   } catch (e) {
     p.error = e.message;
@@ -325,7 +328,10 @@ async function viewAnalyse() {
   if (!p) return `${appBar('Foto')}<div class="page"><p class="empty">Kein Foto ausgewählt.</p></div>`;
   const top = cover(`<img src="${p.photo}" alt="Dein Foto">`);
   if (p.status === 'loading') {
-    return `${top}<div class="sheet"><div class="card loading"><div class="spinner"></div><p><b>Einen Moment …</b></p><p class="muted">Ich schaue mir die Pflanze genau an.</p></div></div>`;
+    const text = p.retry
+      ? 'Google ist gerade sehr beschäftigt – ich versuche es auf einem anderen Weg …'
+      : 'Ich schaue mir die Pflanze genau an.';
+    return `${top}<div class="sheet"><div class="card loading"><div class="spinner"></div><p><b>Einen Moment …</b></p><p class="muted">${text}</p></div></div>`;
   }
   if (p.status === 'error') {
     return `${top}<div class="sheet"><div class="card error"><p>${esc(p.error)}</p><button class="btn primary" data-action="retry">Nochmal versuchen</button></div></div>`;

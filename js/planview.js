@@ -56,7 +56,7 @@ export function viewWalk() {
       <div class="page"><div class="card loading">
         <div class="spinner"></div>
         <p><b>Ich zeichne deinen Garten …</b></p>
-        <p class="muted">${w.photos.length} Fotos werden ausgewertet. Das kann ein bis zwei Minuten dauern – bitte die App so lange offen lassen.</p>
+        <p class="muted">${w.retry ? 'Google ist gerade sehr beschäftigt – ich versuche es auf einem anderen Weg …' : `${w.photos.length} Fotos werden ausgewertet. Das kann ein bis zwei Minuten dauern – bitte die App so lange offen lassen.`}</p>
       </div></div>`;
   }
   const step = WALK_STEPS[w.step];
@@ -126,7 +126,9 @@ async function createFromWalk() {
   rerenderIf('plan');
   try {
     const old = w.update ? await loadPlan() : null;
-    const res = await ai.planGarden(w.photos.map((p) => ({ photo: p.photo, step: p.step })), w.desc.trim(), old);
+    const res = await ai.planGarden(w.photos.map((p) => ({ photo: p.photo, step: p.step })), w.desc.trim(), old, {
+      onRetry: (n) => { w.retry = n; rerenderIf('plan'); },
+    });
     const plan = mergePlan(old, res);
     if (!plan.areas.length && !plan.items.length) throw new Error('Aus den Fotos konnte ich keinen Plan zeichnen. Versuch es mit mehr Fotos aus verschiedenen Richtungen.');
     // Gespeicherte Pflanzen mit passenden Punkten verbinden (Lage bleibt „vermutet“, bis es bestätigt wird)

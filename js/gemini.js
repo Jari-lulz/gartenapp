@@ -4,58 +4,125 @@ import { settings } from './settings.js';
 import { AREA_TYPES, ITEM_ARTS, planForPrompt } from './plan.js';
 
 const BASE = 'https://generativelanguage.googleapis.com/v1beta';
-const FALLBACK_MODEL = 'gemini-2.5-flash';
+const MODEL_LIST_MS = 24 * 60 * 60 * 1000; // Modell-Liste einmal am Tag neu holen
+const MAX_TRIES = 6;
 
 export class AiError extends Error {}
 
-async function call(path, body, key = settings.apiKey) {
-  if (!key) throw new AiError('Es ist noch kein Gemini-Schlüssel eingetragen. Bitte in den Einstellungen hinterlegen.');
+// retry = true: mit einem anderen Modell erneut versuchen lohnt sich
+function fail(message, retry = false, extra = {}) {
+  return Object.assign(new AiError(message), { retry }, extra);
+}
+
+async function call(path, body, key = settings.apiKey, timeoutMs = 0) {
+  if (!key) throw fail('Es ist noch kein Gemini-Schlüssel eingetragen. Bitte in den Einstellungen hinterlegen.');
+  const ctrl = new AbortController();
+  const timer = timeoutMs ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
   let res;
+  let data;
   try {
     res = await fetch(BASE + path, {
       method: body ? 'POST' : 'GET',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
       body: body ? JSON.stringify(body) : undefined,
+      signal: ctrl.signal,
     });
-  } catch {
-    throw new AiError('Keine Internetverbindung. Bitte später nochmal versuchen.');
+    data = await res.json().catch(() => ({}));
+  } catch (e) {
+    if (e.name === 'AbortError') throw fail('Google antwortet gerade nicht.', true, { timeout: true });
+    throw fail('Keine Internetverbindung. Bitte später nochmal versuchen.');
+  } finally {
+    clearTimeout(timer);
   }
-  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const msg = data.error?.message || '';
-    if (res.status === 429) throw new AiError('Das kostenlose Kontingent ist gerade aufgebraucht. In ein paar Minuten (oder morgen) geht es weiter.');
-    if (res.status === 404) { const e = new AiError('Modell nicht gefunden.'); e.notFound = true; throw e; }
-    if (res.status === 400 && /api key/i.test(msg)) throw new AiError('Der Gemini-Schlüssel funktioniert nicht. Bitte in den Einstellungen prüfen.');
-    if (res.status === 403) throw new AiError('Zugriff verweigert – der Gemini-Schlüssel ist ungültig oder gesperrt.');
-    if (res.status === 413 || /too large|payload/i.test(msg)) throw new AiError('Das waren zu viele Fotos auf einmal. Bitte ein paar entfernen.');
-    if (res.status >= 500) throw new AiError('Google ist gerade überlastet. Bitte gleich nochmal versuchen.');
-    throw new AiError('Fehler bei der Anfrage: ' + (msg || res.status));
+    if (res.status === 429) throw fail('Das kostenlose Kontingent ist gerade aufgebraucht. In ein paar Minuten (oder morgen) geht es weiter.', true, { quota: true });
+    if (res.status === 404) throw fail('Modell nicht verfügbar.', true);
+    if (res.status === 400 && /api key/i.test(msg)) throw fail('Der Gemini-Schlüssel funktioniert nicht. Bitte in den Einstellungen prüfen.');
+    if (res.status === 403) throw fail('Zugriff verweigert – der Gemini-Schlüssel ist ungültig, gesperrt oder für diese Adresse nicht freigegeben.');
+    if (res.status === 413 || /too large|payload/i.test(msg)) throw fail('Das waren zu viele Fotos auf einmal. Bitte ein paar entfernen.');
+    if (res.status >= 500) throw fail('Google ist gerade überlastet.', true);
+    throw fail('Fehler bei der Anfrage: ' + (msg || res.status));
   }
   return data;
 }
 
-// Sucht das neueste stabile "Flash"-Modell aus, das Bilder versteht.
-export async function pickModel(key = settings.apiKey) {
-  const data = await call('/models?pageSize=1000', null, key);
+// Alle passenden Modelle, beste zuerst: Flash (neueste Version zuerst), dann die schnelleren Lite-Modelle.
+async function modelList(key = settings.apiKey, fresh = false) {
+  const tag = key.slice(-6);
+  const cached = settings.getCache('models');
+  if (!fresh && cached && cached.tag === tag && Date.now() - cached.at < MODEL_LIST_MS && cached.list.length) return cached.list;
+  const data = await call('/models?pageSize=1000', null, key, 15000);
   const names = (data.models || [])
     .filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
     .map((m) => m.name.replace(/^models\//, ''));
   const version = (n) => parseFloat((n.match(/^gemini-(\d+(?:\.\d+)?)-flash/) || [])[1] || '0');
-  const stable = names.filter((n) => /^gemini-\d+(\.\d+)?-flash$/.test(n)).sort((a, b) => version(b) - version(a));
-  const model = stable[0] || (names.includes('gemini-flash-latest') ? 'gemini-flash-latest' : FALLBACK_MODEL);
-  settings.model = model;
-  return model;
+  const sorted = (re) => names.filter((n) => re.test(n)).sort((a, b) => version(b) - version(a));
+  const list = [
+    ...sorted(/^gemini-\d+(\.\d+)?-flash$/),
+    ...(names.includes('gemini-flash-latest') ? ['gemini-flash-latest'] : []),
+    ...sorted(/^gemini-\d+(\.\d+)?-flash-lite$/),
+    ...(names.includes('gemini-flash-lite-latest') ? ['gemini-flash-lite-latest'] : []),
+  ];
+  settings.setCache('models', { at: Date.now(), tag, list });
+  return list;
 }
 
-async function generate(body) {
-  if (!settings.model) await pickModel();
-  try {
-    return await call(`/models/${settings.model}:generateContent`, body);
-  } catch (e) {
-    if (!e.notFound) throw e;
-    await pickModel(); // Modell wurde abgeschaltet → neu aussuchen und einmal wiederholen
-    return call(`/models/${settings.model}:generateContent`, body);
+// Prüft den Schlüssel und holt die Modell-Liste
+export async function pickModel(key = settings.apiKey) {
+  const list = await modelList(key, true);
+  if (!list.length) throw fail('Mit diesem Schlüssel ist kein passendes Gemini-Modell verfügbar.');
+  if (!list.includes(settings.model)) settings.model = list[0];
+  return settings.model;
+}
+
+// Überlastete Modelle eine Weile überspringen
+const BAD_MS = 30 * 60 * 1000;
+function badModels() {
+  const bad = settings.getCache('badModels') || {};
+  const now = Date.now();
+  return Object.fromEntries(Object.entries(bad).filter(([, until]) => until > now));
+}
+function markBad(model) {
+  settings.setCache('badModels', { ...badModels(), [model]: Date.now() + BAD_MS });
+}
+
+// Fragt Gemini – ist ein Modell überlastet oder antwortet nicht rechtzeitig, kommt automatisch das nächste dran.
+// Das zuletzt erfolgreiche Modell wird gemerkt und zuerst probiert.
+// „Wenig nachdenken“ (thinkingLevel low) macht die Antwort ein Vielfaches schneller.
+async function generate(body, { timeout = 25000, onRetry, thinking = 'low' } = {}) {
+  let list = await modelList();
+  if (settings.model && !list.includes(settings.model)) list = await modelList(settings.apiKey, true);
+  const all = [settings.model, ...list].filter((m, i, a) => m && a.indexOf(m) === i);
+  const bad = badModels();
+  const fresh = all.filter((m) => !bad[m]);
+  const order = [...fresh, ...all.filter((m) => bad[m])].slice(0, MAX_TRIES); // gesperrte nur als letzte Wahl
+  let lastErr = null;
+  for (let i = 0; i < order.length; i++) {
+    const model = order[i];
+    if (i > 0) onRetry?.(i);
+    const withThinking = thinking && !settings.getCache('noThinking')?.[model];
+    const req = withThinking
+      ? { ...body, generationConfig: { ...body.generationConfig, thinkingConfig: { thinkingLevel: thinking } } }
+      : body;
+    try {
+      const data = await call(`/models/${model}:generateContent`, req, settings.apiKey, timeout);
+      settings.model = model;
+      return data;
+    } catch (e) {
+      // Modell kennt die Denk-Einstellung nicht → merken und ohne sie nochmal
+      if (withThinking && !e.retry && /think/i.test(e.message)) {
+        settings.setCache('noThinking', { ...(settings.getCache('noThinking') || {}), [model]: true });
+        i -= 1;
+        continue;
+      }
+      lastErr = e;
+      if (!e.retry) throw e;
+      if (!e.quota) markBad(model);
+    }
   }
+  if (lastErr?.quota) throw lastErr;
+  throw fail('Google ist gerade stark ausgelastet. Bitte in ein paar Minuten nochmal versuchen.');
 }
 
 function textOf(data) {
@@ -141,7 +208,7 @@ const SCHEMA = {
   required: ['pflanze_erkannt', 'name', 'botanisch', 'sicherheit', 'stadium', 'zustand', 'zustand_text', 'steckbrief', 'probleme', 'jetzt_tun', 'pflege', 'frostempfindlich', 'giftig'],
 };
 
-export async function analyze(photo, knownPlant) {
+export async function analyze(photo, knownPlant, { onRetry } = {}) {
   const hint = knownPlant
     ? `\nHinweis: Das ist vermutlich meine Pflanze „${knownPlant.name}“${knownPlant.botanisch ? ` (${knownPlant.botanisch})` : ''}. Prüfe das trotzdem kurz.`
     : '';
@@ -154,7 +221,7 @@ Prüfe außerdem das Foto genau auf Krankheiten, Schädlinge und schlechte Form 
 Nur wenn wirklich etwas zu sehen ist: Problem mit Behandlung nennen. Ist die Pflanze gesund, „gesund“ angeben und keine Probleme erfinden.` }],
     }],
     generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA, temperature: 0.3 },
-  });
+  }, { timeout: 25000, onRetry });
   return parseJson(data);
 }
 
@@ -211,7 +278,7 @@ const PLAN_SCHEMA = {
 };
 
 // photos: [{ photo, step }] · plan: bestehender Plan oder null · description: Beschreibung des Gartens
-export async function planGarden(photos, description, plan) {
+export async function planGarden(photos, description, plan, { onRetry } = {}) {
   const H = plan?.height || 100;
   const size = plan?.size ? `Der Garten ist etwa ${plan.size.w} m breit und ${plan.size.h} m tief (100 Einheiten = ${plan.size.w} m).` : '';
   const parts = [];
@@ -240,7 +307,7 @@ Es muss nicht maßstabsgetreu sein, aber die Lage zueinander soll stimmen.${upda
     systemInstruction: { parts: [{ text: systemText() }] },
     contents: [{ role: 'user', parts }],
     generationConfig: { responseMimeType: 'application/json', responseSchema: PLAN_SCHEMA, temperature: 0.3 },
-  });
+  }, { timeout: 90000, onRetry });
   return parseJson(data);
 }
 
@@ -260,6 +327,6 @@ export async function ask(photo, analysis, history, question) {
     systemInstruction: { parts: [{ text: systemText() + '\nAntworte kurz (höchstens etwa 120 Wörter). Einfache Aufzählungen mit "- " sind erlaubt.' }] },
     contents,
     generationConfig: { temperature: 0.5 },
-  });
+  }, { timeout: 20000 });
   return textOf(data).trim();
 }
