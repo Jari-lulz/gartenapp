@@ -18,7 +18,10 @@ export const ICON = {
 export const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
 export const canSpeak = 'speechSynthesis' in window;
 
-export const fmtDate = (t) => new Date(t).toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' });
+// z. B. „Annas Garten“, „Klaus’ Garten“ oder „Mein Garten“
+export const gardenTitle = (name) => (!name ? 'Mein Garten' : /[sßxz]$/i.test(name) ? `${name}’ Garten` : `${name}s Garten`);
+
+export const fmtDate =(t) => new Date(t).toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' });
 export const byName = (a, b) => a.name.localeCompare(b.name, 'de');
 export const healthDot = (a) => ({ gesund: '🟢', 'leichte Probleme': '🟡', krank: '🔴' }[a?.zustand] || '⚪');
 

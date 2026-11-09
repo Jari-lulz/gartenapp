@@ -1,5 +1,4 @@
-// Feste Angaben für Elfis Garten
-export const OWNER = 'Elfi';
-export const HOME_LOCATION = { name: 'Loitz, Vorpommern', lat: 53.97526, lon: 13.13537 };
-// Öffentliche Adresse der App – Einrichtungs-Links zeigen immer hierhin
+// Öffentliche Adresse der App – Einrichtungs-Links zeigen immer hierhin.
+// Name und Standort stehen bewusst NICHT im Code: Die App fragt sie beim ersten Öffnen ab
+// und speichert sie nur auf dem Gerät.
 export const APP_URL = 'https://jari-lulz.github.io/gartenapp/';

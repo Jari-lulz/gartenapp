@@ -81,7 +81,7 @@ export function setAreaMeters(plan, a, wM, hM) {
 }
 
 // ---------- Gemini-Ergebnis übernehmen ----------
-// Bestehende Elemente (gleiche id) werden aktualisiert, außer sie sind fest (von Elfi bestätigt/vermessen).
+// Bestehende Elemente (gleiche id) werden aktualisiert, außer sie sind fest (selbst bestätigt/vermessen).
 export function mergePlan(old, res) {
   const plan = old ? structuredClone(old) : emptyPlan();
   const H = plan.height;

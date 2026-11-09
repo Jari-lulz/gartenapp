@@ -3,10 +3,10 @@ import * as ai from './gemini.js';
 import * as wx from './weather.js';
 import { prepareImage } from './image.js';
 import { settings } from './settings.js';
-import { OWNER, HOME_LOCATION, APP_URL } from './config.js';
+import { APP_URL } from './config.js';
 import { esc, uid } from './util.js';
 import {
-  ICON, SpeechRec, canSpeak, fmtDate, byName, healthDot, md, appBar, cover, bottomBar, micButton,
+  ICON, SpeechRec, canSpeak, fmtDate, byName, healthDot, md, appBar, cover, bottomBar, micButton, gardenTitle,
 } from './ui.js';
 import { mapSvg, normalizePlan } from './plan.js';
 import {
@@ -38,20 +38,59 @@ export const state = {
   labels: false,
   measure: [],
   placing: null,     // { plantId, name, suggestions }
+  onb: { name: '', results: [], loc: null, msg: '' }, // Ersteinrichtung
 };
 
-// ---------- Einrichtungs-Link: #setup=SCHLÜSSEL ----------
-// Der Teil nach # wird nie an einen Server geschickt – der Schlüssel landet nur auf diesem Handy.
+const owner = () => settings.name || '';
+
+// ---------- Einrichtungs-Link: #setup=SCHLÜSSEL&name=NAME ----------
+// Der Teil nach # wird nie an einen Server geschickt – Schlüssel und Name landen nur auf diesem Handy.
 (function applySetupLink() {
-  const m = location.hash.match(/^#setup=([^&]+)/);
-  if (!m) return;
+  if (!location.hash.startsWith('#setup=')) return;
   try {
-    settings.apiKey = decodeURIComponent(m[1]);
-    settings.model = '';
-    state.msg.welcome = true;
+    const params = new URLSearchParams(location.hash.slice(1));
+    const key = params.get('setup');
+    if (key) {
+      settings.apiKey = key;
+      settings.model = '';
+      state.msg.welcome = true;
+    }
+    const name = params.get('name');
+    if (name && !settings.name) state.onb.name = name.slice(0, 30);
   } catch { /* kaputter Link */ }
   history.replaceState(null, '', location.pathname + location.search + '#/');
 })();
+
+// ---------- Ersteinrichtung: Name und Garten-Standort ----------
+function viewOnboarding() {
+  const o = state.onb;
+  const ready = o.name.trim() && o.loc;
+  return `
+    <section class="hero onboarding">
+      <div class="onb-icon">🌿</div>
+      <h1>Willkommen!</h1>
+      <p class="hero-date">Zwei kurze Fragen, dann geht es los. Die Antworten bleiben nur auf diesem Handy.</p>
+    </section>
+    <div class="page">
+      <div class="card">
+        <h3>1. Wie heißt du?</h3>
+        <input name="onb-name" data-input="onb-name" value="${esc(o.name)}" placeholder="Dein Vorname" autocomplete="given-name">
+      </div>
+      <div class="card">
+        <h3>2. Wo ist dein Garten?</h3>
+        <p class="muted small">Für Wetter und Frostwarnungen. Ort oder Adresse eingeben – oder im Garten auf „Standort verwenden“ tippen.</p>
+        ${o.loc ? `<div class="picked">📍 <div><b>${esc(o.loc.name)}</b><span class="muted small">${esc(o.loc.label || '')}</span></div><button class="btn small" data-action="onb-change">Ändern</button></div>` : `
+        <form class="inline" data-form="onb-search">
+          <input name="q" placeholder="z. B. Gartenstraße 5, Musterstadt" autocomplete="street-address">
+          <button class="btn secondary" type="submit">Suchen</button>
+        </form>
+        ${o.results.map((r, i) => `<button class="btn list" data-action="onb-pick" data-i="${i}"><span><b>${esc(r.name)}</b><br><span class="muted small">${esc(r.label)}</span></span></button>`).join('')}
+        <button class="btn secondary wide" data-action="onb-gps">${ICON.pin}<span>Aktuellen Standort verwenden</span></button>`}
+        ${o.msg ? `<p class="status">${esc(o.msg)}</p>` : ''}
+      </div>
+      <button class="btn primary big" data-action="onb-done" ${ready ? '' : 'disabled'}>Los geht's</button>
+    </div>`;
+}
 
 // ---------- Navigation ----------
 export const route = () => location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
@@ -59,8 +98,10 @@ export const route = () => location.hash.replace(/^#\/?/, '').split('/').filter(
 export async function render() {
   const [page, id] = route();
   document.body.dataset.page = page || 'home';
+  document.title = gardenTitle(owner());
   try {
-    if (page === 'analyse') app.innerHTML = await viewAnalyse();
+    if (!settings.name || !settings.location) app.innerHTML = viewOnboarding();
+    else if (page === 'analyse') app.innerHTML = await viewAnalyse();
     else if (page === 'pflanze') app.innerHTML = await viewPlant(id);
     else if (page === 'einstellungen') app.innerHTML = viewSettings();
     else if (page === 'plan' && id === 'rundgang') app.innerHTML = viewWalk();
@@ -112,7 +153,7 @@ function greeting() {
   if (h < 18) return 'Hallo';
   return 'Guten Abend';
 }
-const placeName = () => settings.location.name.split(',')[0];
+const placeName = () => settings.location?.name || "";
 
 // ---------- Startseite ----------
 async function viewHome() {
@@ -121,12 +162,12 @@ async function viewHome() {
   const today = new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
   const welcome = state.msg.welcome ? `
     <div class="card setup">
-      <h2>Alles eingerichtet, ${OWNER}!</h2>
+      <h2>Alles eingerichtet, ${esc(owner())}!</h2>
       <p>Die App ist startklar. Tippe unten auf „Pflanze fotografieren“ und probier es aus.</p>
     </div>` : '';
   const setup = settings.apiKey ? '' : `
     <div class="card setup">
-      <h2>Willkommen, ${OWNER}!</h2>
+      <h2>Willkommen, ${esc(owner())}!</h2>
       <p>Bevor es losgeht, muss einmal der kostenlose Gemini-Schlüssel eingetragen werden.</p>
       <a class="btn primary" href="#/einstellungen">Jetzt einrichten</a>
     </div>`;
@@ -159,7 +200,7 @@ async function viewHome() {
         <a class="icon-btn light" href="#/einstellungen" aria-label="Einstellungen">${ICON.settings}</a>
       </div>
       <p class="hero-date">${today}</p>
-      <h1>${greeting()},<br>${OWNER}!</h1>
+      <h1>${greeting()},<br>${esc(owner())}!</h1>
       <div class="wx-row" id="wx">${'<div class="wx skeleton"></div>'.repeat(4)}</div>
     </section>
     <div class="page has-bottom-bar">
@@ -308,7 +349,9 @@ function analysisHtml(a, withTitle) {
   const conf = { hoch: '✓ ziemlich sicher', mittel: 'wahrscheinlich', niedrig: 'unsicher' }[a.sicherheit] || '';
   const healthClass = { gesund: 'good', 'leichte Probleme': 'info', krank: 'warn' }[a.zustand] || 'info';
   const care = a.pflege || {};
-  const row = (icon, label, text) => (text ? `<div class="row"><span class="ic">${icon}</span><div><b>${label}</b><p>${esc(text)}</p></div></div>` : '');
+  const sb = a.steckbrief;
+  const healthy = a.zustand === 'gesund' && !(a.probleme || []).length;
+  const row =(icon, label, text) => (text ? `<div class="row"><span class="ic">${icon}</span><div><b>${label}</b><p>${esc(text)}</p></div></div>` : '');
   return `
     ${withTitle ? `
     <div class="title-block">
@@ -320,8 +363,10 @@ function analysisHtml(a, withTitle) {
       ${a.stadium ? `<span class="chip">🌱 ${esc(a.stadium)}</span>` : ''}
     </p>
     ${a.sicherheit !== 'hoch' && a.alternativen?.length ? `<p class="muted small">Könnte auch sein: ${esc(a.alternativen.join(', '))}</p>` : ''}
-    <div class="card health ${healthClass}">
-      <h3>${healthDot(a)} ${esc(a.zustand.charAt(0).toUpperCase() + a.zustand.slice(1))}</h3>
+    ${healthy
+      ? `<div class="healthy">🟢 <div><b>Sieht gesund aus</b>${a.zustand_text ? `<span>${esc(a.zustand_text)}</span>` : ''}</div></div>`
+      : `<div class="card health ${healthClass}">
+      <h3>${healthDot(a)} ${a.zustand === 'krank' ? 'Hier stimmt etwas nicht' : 'Kleine Probleme entdeckt'}</h3>
       <p>${esc(a.zustand_text)}</p>
       ${(a.probleme || []).map((pr) => `
         <div class="problem">
@@ -330,8 +375,18 @@ function analysisHtml(a, withTitle) {
           <p>🌿 <b>Bio:</b> ${esc(pr.bio)}</p>
           ${pr.sonst ? `<p>🧴 <b>Falls das nicht hilft:</b> ${esc(pr.sonst)}</p>` : ''}
         </div>`).join('')}
-    </div>
-    ${a.jetzt_tun?.length ? `<div class="card todo"><h3>Jetzt zu tun</h3><ul class="checks">${a.jetzt_tun.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
+    </div>`}
+    ${sb ? `
+    <div class="card care profile">
+      <h3>Steckbrief</h3>
+      ${sb.kurz ? `<p class="profile-intro">${esc(sb.kurz)}</p>` : ''}
+      ${row('🌸', 'Blütezeit', sb.bluetezeit)}
+      ${row('🍎', 'Früchte / Ernte', sb.fruechte)}
+      ${row('🌱', 'Aussaat / Pflanzung', sb.aussaat)}
+      ${row('🪴', 'Ableger &amp; Vermehrung', sb.vermehrung)}
+      ${row('📏', 'Wuchs', sb.wuchs)}
+    </div>` : ''}
+    ${a.jetzt_tun?.length ? `<div class="card todo"><h3>${healthy ? 'Passend zur Jahreszeit' : 'Jetzt zu tun'}</h3><ul class="checks">${a.jetzt_tun.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
     <div class="card care">
       <h3>Pflege</h3>
       ${row('💧', 'Gießen', care.giessen)}
@@ -569,11 +624,19 @@ function entryHtml(p, e, i) {
 // ---------- Einstellungen ----------
 function viewSettings() {
   const loc = settings.location;
-  const isHome = loc.lat === HOME_LOCATION.lat && loc.lon === HOME_LOCATION.lon;
   const m = state.msg;
   return `
     ${appBar('Einstellungen')}
     <div class="page">
+      <div class="card">
+        <h3>👤 Dein Name</h3>
+        <form data-form="edit-name" class="inline">
+          <input name="name" value="${esc(owner())}" placeholder="Dein Vorname">
+          <button class="btn secondary" type="submit">Speichern</button>
+        </form>
+        ${m.name ? `<p class="status">${esc(m.name)}</p>` : ''}
+      </div>
+
       <form class="card" data-form="key">
         <h3>🔑 Gemini-Schlüssel</h3>
         <p class="muted small">Wird nur auf diesem Gerät gespeichert – nie im Code und nie auf GitHub.</p>
@@ -592,24 +655,23 @@ function viewSettings() {
         ${settings.apiKey ? `
         <details>
           <summary>Einrichtungs-Link für ein anderes Handy</summary>
-          <p class="small">Ein persönlicher Link, der den Schlüssel auf einem anderen Handy einträgt. Nur privat verschicken (z. B. per WhatsApp an ${OWNER}) – wer den Link hat, kann deinen Schlüssel benutzen.</p>
+          <p class="small">Ein persönlicher Link, der den Schlüssel auf einem anderen Handy einträgt. Nur privat verschicken (z. B. per WhatsApp) – wer den Link hat, kann deinen Schlüssel benutzen.</p>
           <button class="btn secondary wide" type="button" data-action="setup-share">${ICON.share}<span>Einrichtungs-Link teilen</span></button>
         </details>` : ''}
       </form>
 
       <div class="card">
         <h3>📍 Garten-Standort</h3>
-        <p>Wetter und Frost-Hinweise für <b>${esc(loc.name)}</b></p>
+        <p>Wetter und Frost-Hinweise für <b>${esc(loc.name)}</b>${loc.label ? `<br><span class="muted small">${esc(loc.label)}</span>` : ''}</p>
         ${m.place ? `<p class="status">${esc(m.place)}</p>` : ''}
         <details ${state.placeResults.length ? 'open' : ''}>
           <summary>Anderen Ort wählen</summary>
           <button class="btn secondary wide" data-action="gps">Aktuellen Standort verwenden</button>
           <form data-form="place" class="inline">
-            <input name="q" placeholder="Ort eingeben">
+            <input name="q" placeholder="Ort oder Adresse">
             <button class="btn secondary" type="submit">Suchen</button>
           </form>
-          ${state.placeResults.map((r, i) => `<button class="btn list" data-action="pick-place" data-i="${i}">${esc(r.name)}</button>`).join('')}
-          ${isHome ? '' : '<button class="btn list" data-action="reset-place">Zurück zu Loitz</button>'}
+          ${state.placeResults.map((r, i) => `<button class="btn list" data-action="pick-place" data-i="${i}"><span><b>${esc(r.name)}</b><br><span class="muted small">${esc(r.label || '')}</span></span></button>`).join('')}
         </details>
       </div>
 
@@ -635,7 +697,7 @@ async function backupFile() {
     photos: await db.getPhotos(),
     meta: await db.getAllMeta(),
   };
-  const name = `elfis-garten-${new Date().toISOString().slice(0, 10)}.json`;
+  const name = `garten-sicherung-${new Date().toISOString().slice(0, 10)}.json`;
   return new File([JSON.stringify(data)], name, { type: 'application/json' });
 }
 
@@ -654,8 +716,8 @@ async function shareBackup() {
     try {
       await navigator.share({
         files: [file],
-        title: `${OWNER}s Garten – Sicherung`,
-        text: `Sicherung von ${OWNER}s Garten-App vom ${fmtDate(Date.now())} (${mb} MB).`,
+        title: `${gardenTitle(owner())} – Sicherung`,
+        text: `Sicherung der Garten-App (${gardenTitle(owner())}) vom ${fmtDate(Date.now())} (${mb} MB).`,
       });
       settings.lastBackup = Date.now();
       state.msg.backup = '✅ Sicherung verschickt.';
@@ -671,10 +733,11 @@ async function shareBackup() {
 }
 
 async function shareSetupLink() {
-  const url = `${APP_URL}#setup=${encodeURIComponent(settings.apiKey)}`;
-  const text = `Hallo ${OWNER}! Tippe auf diesen Link, dann ist deine Garten-App fertig eingerichtet:\n${url}`;
+  const who = (prompt('Für wen ist der Link? (Vorname, wird beim Öffnen schon eingetragen)', '') || '').trim();
+  const url = `${APP_URL}#setup=${encodeURIComponent(settings.apiKey)}${who ? `&name=${encodeURIComponent(who)}` : ''}`;
+  const text = `Hallo${who ? ` ${who}` : ''}! Tippe auf diesen Link, dann ist deine Garten-App eingerichtet:\n${url}`;
   if (navigator.share) {
-    try { await navigator.share({ title: `${OWNER}s Garten`, text }); } catch { /* abgebrochen */ }
+    try { await navigator.share({ title: 'Garten-App', text }); } catch { /* abgebrochen */ }
   } else {
     try { await navigator.clipboard.writeText(url); alert('Link kopiert.'); } catch { prompt('Link kopieren:', url); }
   }
@@ -753,8 +816,8 @@ document.addEventListener('click', async (e) => {
       state.msg.place = '⏳ Standort wird ermittelt …';
       render();
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          settings.location = { name: 'Aktueller Standort', lat: pos.coords.latitude, lon: pos.coords.longitude };
+        async (pos) => {
+          settings.location = await wx.placeFromGps(pos.coords.latitude, pos.coords.longitude);
           state.msg.place = '✅ Standort gespeichert.';
           render();
         },
@@ -768,11 +831,41 @@ document.addEventListener('click', async (e) => {
       state.msg.place = '✅ Ort gespeichert.';
       render();
       break;
-    case 'reset-place':
-      settings.location = null;
-      state.msg.place = '✅ Wieder Loitz.';
+    // Ersteinrichtung
+    case 'onb-pick':
+      state.onb.loc = state.onb.results[+d.i];
+      state.onb.results = [];
+      state.onb.msg = '';
       render();
       break;
+    case 'onb-change':
+      state.onb.loc = null;
+      render();
+      break;
+    case 'onb-gps':
+      if (!navigator.geolocation) { state.onb.msg = 'Standort wird hier nicht unterstützt – bitte Ort eintippen.'; render(); break; }
+      state.onb.msg = '⏳ Standort wird ermittelt …';
+      render();
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          state.onb.loc = await wx.placeFromGps(pos.coords.latitude, pos.coords.longitude);
+          state.onb.msg = '';
+          render();
+        },
+        () => { state.onb.msg = 'Standort konnte nicht ermittelt werden. Bitte den Ort oder die Adresse eintippen.'; render(); },
+        { timeout: 15000 },
+      );
+      break;
+    case 'onb-done': {
+      const o = state.onb;
+      if (!o.name.trim() || !o.loc) break;
+      settings.name = o.name.trim().slice(0, 30);
+      settings.location = o.loc;
+      state.onb = { name: '', results: [], loc: null, msg: '' };
+      location.hash = '#/';
+      render();
+      break;
+    }
     case 'restore': restoreInput.value = ''; restoreInput.click(); break;
   }
 });
@@ -785,6 +878,28 @@ document.addEventListener('submit', async (e) => {
   if (await handlePlanSubmit(f, fd)) return;
   switch (f.dataset.form) {
     case 'ask': ask(f, fd.get('q')); break;
+    case 'onb-search': {
+      const q = fd.get('q').trim();
+      if (!q) break;
+      state.onb.msg = '⏳ Suche …';
+      render();
+      try {
+        state.onb.results = await wx.searchPlace(q);
+        state.onb.msg = state.onb.results.length ? 'Bitte das Richtige antippen:' : 'Nichts gefunden. Versuch es nur mit dem Ort.';
+      } catch {
+        state.onb.msg = 'Suche fehlgeschlagen – Internet prüfen.';
+      }
+      render();
+      break;
+    }
+    case 'edit-name': {
+      const name = fd.get('name').trim().slice(0, 30);
+      if (!name) break;
+      settings.name = name;
+      state.msg.name = '✅ Gespeichert.';
+      render();
+      break;
+    }
     case 'save-new': {
       const a = state.pending.analysis;
       await saveEntry({
@@ -849,6 +964,12 @@ document.addEventListener('change', async (e) => {
 
 document.addEventListener('input', (e) => {
   if (handlePlanInput(e)) return;
+  if (e.target.dataset.input === 'onb-name') {
+    state.onb.name = e.target.value;
+    const btn = document.querySelector('[data-action="onb-done"]');
+    if (btn) btn.disabled = !(state.onb.name.trim() && state.onb.loc);
+    return;
+  }
   if (e.target.dataset.input !== 'filter') return;
   const q = e.target.value.toLowerCase();
   document.querySelectorAll('.plant-card').forEach((c) => { c.hidden = !c.dataset.name.includes(q); });

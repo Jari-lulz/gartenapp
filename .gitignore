@@ -1,4 +1,4 @@
 .claude/
 *.json.bak
 garten-sicherung-*.json
-elfis-garten-*.json
+*-sicherung-*.json

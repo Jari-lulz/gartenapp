@@ -129,7 +129,7 @@ async function createFromWalk() {
     const res = await ai.planGarden(w.photos.map((p) => ({ photo: p.photo, step: p.step })), w.desc.trim(), old);
     const plan = mergePlan(old, res);
     if (!plan.areas.length && !plan.items.length) throw new Error('Aus den Fotos konnte ich keinen Plan zeichnen. Versuch es mit mehr Fotos aus verschiedenen Richtungen.');
-    // Gespeicherte Pflanzen mit passenden Punkten verbinden (Lage bleibt „vermutet“, bis Elfi bestätigt)
+    // Gespeicherte Pflanzen mit passenden Punkten verbinden (Lage bleibt „vermutet“, bis es bestätigt wird)
     const linked = new Set(plan.items.map((i) => i.plantId).filter(Boolean));
     for (const p of await db.getPlants()) {
       if (linked.has(p.id)) continue;
@@ -462,7 +462,7 @@ async function endDrag() {
   const d = drag;
   drag = null;
   if (!d.moved) return;
-  d.el.fixed = true; // von Elfi korrigiert → Gemini ändert das nicht mehr
+  d.el.fixed = true; // selbst korrigiert → Gemini ändert das nicht mehr
   if (d.kind === 'item') d.el.status = 'bestaetigt';
   await savePlan(state.plan);
   redraw(true);

@@ -1,5 +1,4 @@
 // Einstellungen bleiben nur auf diesem Handy gespeichert (nie im Code auf GitHub).
-import { HOME_LOCATION } from './config.js';
 
 function read(key, fallback) {
   try {
@@ -24,7 +23,9 @@ export const settings = {
   set apiKey(v) { write('apiKey', v); },
   get model() { return read('model', ''); },
   set model(v) { write('model', v); },
-  get location() { return read('location', null) || HOME_LOCATION; }, // { name, lat, lon }
+  get name() { return read('name', ''); },
+  set name(v) { write('name', v); },
+  get location() { return read('location', null); }, // { name, label, lat, lon }
   set location(v) { write('location', v); },
   get lastBackup() { return read('lastBackup', 0); },
   set lastBackup(v) { write('lastBackup', v); },

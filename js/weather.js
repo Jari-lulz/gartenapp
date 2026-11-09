@@ -19,15 +19,47 @@ export async function forecast(loc) {
   return data;
 }
 
-export async function searchPlace(name) {
-  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=5&language=de&format=json`;
-  const res = await fetch(url);
-  const data = await res.json();
+// Adresse oder Ort suchen (OpenStreetMap / Nominatim, kostenlos). Ergebnis bleibt nur auf dem Gerät.
+const NOMINATIM = 'https://nominatim.openstreetmap.org';
+
+function fromOsm(r) {
+  const a = r.address || {};
+  const town = a.city || a.town || a.village || a.municipality || a.hamlet || a.county || r.name || '';
+  const street = [a.road, a.house_number].filter(Boolean).join(' ');
+  const region = a.state || '';
+  return {
+    name: town,
+    label: [street, [a.postcode, town].filter(Boolean).join(' '), region].filter(Boolean).join(', '),
+    lat: Math.round(parseFloat(r.lat) * 1e4) / 1e4,
+    lon: Math.round(parseFloat(r.lon) * 1e4) / 1e4,
+  };
+}
+
+export async function searchPlace(query) {
+  try {
+    const url = `${NOMINATIM}/search?format=jsonv2&addressdetails=1&limit=5&accept-language=de&countrycodes=de,at,ch&q=${encodeURIComponent(query)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error();
+    const list = (await res.json()).map(fromOsm).filter((p) => p.name);
+    if (list.length) return list;
+  } catch { /* weiter mit der Ortssuche */ }
+  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=de&format=json`;
+  const data = await (await fetch(url)).json();
   return (data.results || []).map((r) => ({
-    name: [r.name, r.admin1].filter(Boolean).join(', '),
+    name: r.name,
+    label: [r.name, r.admin1].filter(Boolean).join(', '),
     lat: r.latitude,
     lon: r.longitude,
   }));
+}
+
+export async function placeFromGps(lat, lon) {
+  try {
+    const res = await fetch(`${NOMINATIM}/reverse?format=jsonv2&addressdetails=1&zoom=14&accept-language=de&lat=${lat}&lon=${lon}`);
+    const p = fromOsm(await res.json());
+    if (p.name) return { ...p, label: p.label || p.name };
+  } catch { /* ohne Namen weiter */ }
+  return { name: 'Mein Garten', label: 'Aktueller Standort', lat: Math.round(lat * 1e4) / 1e4, lon: Math.round(lon * 1e4) / 1e4 };
 }
 
 // ---------- Wettersymbole (eigene Zeichnungen, überall gleich) ----------
@@ -38,17 +70,17 @@ const SUN = (cx, cy, r) => {
     const x2 = cx + Math.cos(a) * (r + 6.5), y2 = cy + Math.sin(a) * (r + 6.5);
     return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`;
   }).join('');
-  return `<g stroke="#FFC93C" stroke-width="2.6" stroke-linecap="round">${rays}</g><circle cx="${cx}" cy="${cy}" r="${r}" fill="#FFD54A" stroke="#F5A623" stroke-width="1.5"/>`;
+  return `<g class="wx-rays" style="transform-origin:${cx}px ${cy}px" stroke="#FFC93C" stroke-width="2.6" stroke-linecap="round">${rays}</g><circle cx="${cx}" cy="${cy}" r="${r}" fill="#FFD54A" stroke="#F5A623" stroke-width="1.5"/>`;
 };
 const CLOUD = (dx, dy, s, fill) => `<path transform="translate(${dx} ${dy}) scale(${s})" d="M14 34h24a9 9 0 0 0 0-18 12 12 0 0 0-23-3 8.5 8.5 0 0 0-1 21z" fill="${fill}" stroke="rgba(40,60,80,.25)" stroke-width="1.2"/>`;
 const DROPS = (n, color = '#4FA3F7') => {
   const xs = n === 2 ? [20, 30] : n === 3 ? [17, 26, 35] : [15, 22, 29, 36];
-  return xs.map((x, i) => `<path d="M${x} ${39 + (i % 2) * 3}l-2.5 6" stroke="${color}" stroke-width="3" stroke-linecap="round"/>`).join('');
+  return xs.map((x, i) => `<path class="wx-drop" style="animation-delay:${(i * 0.27).toFixed(2)}s" d="M${x} ${39 + (i % 2) * 3}l-2.5 6" stroke="${color}" stroke-width="3" stroke-linecap="round"/>`).join('');
 };
-const FLAKES = () => [16, 26, 36].map((x, i) => `<g transform="translate(${x} ${43 + (i % 2) * 3})" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><line x1="-3" y1="0" x2="3" y2="0"/><line x1="-1.5" y1="-2.6" x2="1.5" y2="2.6"/><line x1="-1.5" y1="2.6" x2="1.5" y2="-2.6"/></g>`).join('');
-const HAIL = () => [16, 24, 32, 38].map((x, i) => `<circle cx="${x}" cy="${42 + (i % 2) * 4}" r="2.6" fill="#EAF6FF" stroke="#7FB8E6" stroke-width="1.2"/>`).join('');
-const BOLT = '<path d="M27 33l-6 9h5l-3 8 9-11h-5l3-6z" fill="#FFD23F" stroke="#E0A800" stroke-width="1"/>';
-const WIND = '<g stroke="#fff" stroke-width="3" stroke-linecap="round" fill="none"><path d="M6 20h26a5 5 0 1 0-5-5"/><path d="M6 29h34a5 5 0 1 1-5 5"/><path d="M10 38h16"/></g>';
+const FLAKES = () => [16, 26, 36].map((x, i) => `<g class="wx-flake" style="animation-delay:${i * 0.4}s"><g transform="translate(${x} ${43 + (i % 2) * 3})" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><line x1="-3" y1="0" x2="3" y2="0"/><line x1="-1.5" y1="-2.6" x2="1.5" y2="2.6"/><line x1="-1.5" y1="2.6" x2="1.5" y2="-2.6"/></g></g>`).join('');
+const HAIL = () => [16, 24, 32, 38].map((x, i) => `<circle class="wx-drop" style="animation-delay:${i * 0.2}s" cx="${x}" cy="${42 + (i % 2) * 4}" r="2.6" fill="#EAF6FF" stroke="#7FB8E6" stroke-width="1.2"/>`).join('');
+const BOLT = '<path class="wx-bolt" d="M27 33l-6 9h5l-3 8 9-11h-5l3-6z" fill="#FFD23F" stroke="#E0A800" stroke-width="1"/>';
+const WIND = '<g class="wx-wind" stroke="#fff" stroke-width="3" stroke-linecap="round" fill="none"><path d="M6 20h26a5 5 0 1 0-5-5"/><path d="M6 29h34a5 5 0 1 1-5 5"/><path d="M10 38h16"/></g>';
 const FOG = '<g stroke="#E8EEF2" stroke-width="3" stroke-linecap="round"><line x1="10" y1="38" x2="40" y2="38"/><line x1="14" y1="44" x2="36" y2="44"/></g>';
 
 const W = '#FFFFFF';

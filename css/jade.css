@@ -1,0 +1,237 @@
+/* =====================================================================
+   Jade-Glas: edle, halbtransparente Kacheln von Jadegrün ins Weißliche
+   und dezente Animationen. Wird nach style.css geladen und überschreibt es.
+   ===================================================================== */
+:root {
+  --jade-1: #6cc59a;
+  --jade-2: #3a9a6b;
+  --jade-3: #1f6b47;
+  --bg: #f1f6f1;
+  --glass: linear-gradient(150deg, rgba(255, 255, 255, .88) 0%, rgba(240, 249, 243, .74) 45%, rgba(212, 238, 223, .62) 100%);
+  --glass-border: rgba(255, 255, 255, .92);
+  --glass-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), inset 0 -1px 0 rgba(58, 154, 107, .10), 0 12px 32px rgba(31, 107, 71, .10), 0 2px 6px rgba(31, 107, 71, .06);
+}
+
+body {
+  background:
+    radial-gradient(60vw 60vw at 0% 0%, rgba(166, 220, 190, .45), transparent 60%),
+    radial-gradient(55vw 55vw at 100% 35%, rgba(190, 230, 208, .45), transparent 60%),
+    radial-gradient(70vw 70vw at 20% 100%, rgba(214, 238, 223, .55), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+.card, .hint, .banner, .healthy {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+}
+.card { position: relative; overflow: hidden; }
+/* feiner Glanz oben auf jeder Kachel */
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 46%;
+  background: linear-gradient(rgba(255, 255, 255, .55), rgba(255, 255, 255, 0));
+  pointer-events: none;
+  border-radius: inherit;
+}
+.card > * { position: relative; }
+
+.setup { background: linear-gradient(150deg, rgba(226, 245, 234, .92), rgba(190, 228, 206, .7)); }
+.health.good { background: linear-gradient(150deg, rgba(236, 249, 240, .9), rgba(196, 232, 210, .7)); }
+.health.info, .card.warn { background: linear-gradient(150deg, rgba(255, 250, 235, .92), rgba(250, 230, 180, .65)); }
+.health.warn, .card.error { background: linear-gradient(150deg, rgba(255, 242, 240, .92), rgba(248, 200, 194, .65)); }
+.hint.warn { background: linear-gradient(150deg, rgba(255, 244, 242, .92), rgba(250, 205, 198, .6)); }
+.hint.info { background: linear-gradient(150deg, rgba(255, 251, 238, .92), rgba(250, 228, 170, .6)); }
+.hint.good { background: linear-gradient(150deg, rgba(238, 250, 242, .92), rgba(190, 230, 206, .65)); }
+.banner { background: linear-gradient(150deg, rgba(255, 251, 238, .94), rgba(250, 228, 170, .6)); }
+
+/* Knöpfe in Jade */
+.btn.primary {
+  background: linear-gradient(150deg, var(--jade-1) 0%, var(--jade-2) 48%, var(--jade-3) 100%);
+  border: 1px solid rgba(255, 255, 255, .45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), inset 0 -4px 10px rgba(10, 60, 35, .22), 0 10px 26px rgba(31, 107, 71, .32);
+}
+.btn.secondary {
+  background: linear-gradient(150deg, rgba(255, 255, 255, .95), rgba(220, 242, 229, .78) 60%, rgba(196, 232, 211, .7));
+  border: 1px solid rgba(255, 255, 255, .95);
+}
+/* Lichtstreifen, der ab und zu über Hauptknöpfe gleitet */
+.btn.primary::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 40%;
+  height: 200%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .45), transparent);
+  transform: skewX(-20deg);
+  animation: sheen 5.5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes sheen {
+  0%, 70% { left: -60%; }
+  100% { left: 130%; }
+}
+.btn, .icon-btn, .chip-btn, .plant-card { transition: transform .18s cubic-bezier(.3, .7, .4, 1.4), box-shadow .2s ease, filter .2s ease; }
+.btn:active, .icon-btn:active, .chip-btn:active { transform: scale(.96); }
+@media (hover: hover) {
+  .btn:hover, .icon-btn:hover { transform: translateY(-1px); filter: brightness(1.04); }
+  .plant-card:hover { transform: translateY(-3px); box-shadow: 0 16px 34px rgba(31, 107, 71, .2); }
+}
+
+/* Begrüßung: Jade-Glas wie die Kacheln, oben dunkleres Grün, nach unten heller und leicht durchsichtig */
+.hero {
+  background:
+    radial-gradient(circle at 92% 4%, rgba(255, 236, 170, .28) 0, rgba(255, 236, 170, 0) 30%),
+    linear-gradient(175deg,
+      rgba(12, 56, 35, 1) 0%,
+      rgba(20, 80, 52, .97) 32%,
+      rgba(40, 122, 82, .9) 60%,
+      rgba(120, 190, 152, .78) 86%,
+      rgba(205, 233, 216, .66) 100%);
+  border: 1px solid rgba(255, 255, 255, .55);
+  border-top: 0;
+  box-shadow:
+    inset 0 -1px 0 rgba(255, 255, 255, .7),
+    inset 0 1px 30px rgba(255, 255, 255, .06),
+    0 14px 36px rgba(20, 78, 50, .22);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  overflow: hidden;
+}
+/* Glanzkante oben wie bei Glas */
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 22%;
+  background: linear-gradient(rgba(255, 255, 255, .07), rgba(255, 255, 255, 0));
+  pointer-events: none;
+  z-index: 0;
+}
+/* Wetterkacheln: dunkles Glas, damit die weiße Schrift auch auf dem hellen Teil gut lesbar bleibt */
+.wx {
+  background: linear-gradient(160deg, rgba(255, 255, 255, .22), rgba(20, 78, 50, .22));
+  border: 1px solid rgba(255, 255, 255, .45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), 0 6px 16px rgba(20, 78, 50, .18);
+  text-shadow: 0 1px 2px rgba(10, 50, 30, .35);
+}
+.wx:first-child { background: linear-gradient(160deg, rgba(255, 255, 255, .32), rgba(20, 78, 50, .2)); }
+.hero::after {
+  content: "";
+  position: absolute;
+  top: -40%;
+  bottom: -40%;
+  left: -45%;
+  width: 45%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .16), transparent);
+  transform: skewX(-18deg);
+  animation: heroSheen 9s ease-in-out infinite;
+  pointer-events: none;
+}
+.hero > * { position: relative; z-index: 1; }
+@keyframes heroSheen {
+  0%, 60% { left: -45%; }
+  100% { left: 120%; }
+}
+
+.plant-card { border: 1px solid rgba(255, 255, 255, .75); }
+.plant-card .badge { backdrop-filter: blur(6px); background: rgba(255, 255, 255, .75); }
+.chip { background: linear-gradient(150deg, rgba(255, 255, 255, .9), rgba(214, 240, 225, .85)); border: 1px solid rgba(255, 255, 255, .9); }
+.chip.soft { background: linear-gradient(150deg, rgba(255, 251, 238, .95), rgba(250, 230, 180, .8)); }
+.ic, .area-icon, .empty-icon, .plan-icon {
+  border: 1px solid rgba(255, 255, 255, .95);
+  box-shadow: inset 0 1px 0 #fff, 0 4px 12px rgba(31, 107, 71, .1);
+}
+.ic, .empty-icon, .plan-icon { background: linear-gradient(150deg, rgba(255, 255, 255, .95), rgba(206, 236, 219, .85)); }
+.sheet { background: var(--bg); }
+.appbar { background: rgba(241, 246, 241, .72); backdrop-filter: blur(14px) saturate(150%); -webkit-backdrop-filter: blur(14px) saturate(150%); }
+.bottom-bar { background: linear-gradient(rgba(241, 246, 241, 0), rgba(241, 246, 241, .9) 40%); }
+.spinner { border-color: rgba(108, 197, 154, .25); border-top-color: var(--jade-2); }
+.msg.model { background: linear-gradient(150deg, rgba(236, 248, 240, .95), rgba(206, 236, 219, .85)); }
+.msg.user { background: linear-gradient(150deg, var(--jade-1), var(--jade-3)); }
+
+/* Gesund-Hinweis (kompakt) */
+.healthy {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  border-radius: var(--radius);
+  font-size: 22px;
+}
+.healthy div { font-size: 17px; }
+.healthy b { display: block; font-size: 19px; color: var(--jade-3); }
+.healthy span { color: var(--muted); }
+.profile-intro { color: var(--muted); margin-bottom: 4px; }
+
+/* Ersteinrichtung */
+.hero.onboarding { text-align: center; padding-bottom: 28px; }
+.hero.onboarding h1 { margin: 6px 0; }
+.onb-icon {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  margin: 18px auto 6px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, .2);
+  border: 1px solid rgba(255, 255, 255, .4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5);
+  font-size: 44px;
+  animation: float 4s ease-in-out infinite;
+}
+.picked { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 16px; background: rgba(255, 255, 255, .7); }
+.picked div { flex: 1; }
+.picked b, .picked span { display: block; }
+.btn.list { text-align: left; }
+
+/* ---------- Animationen ---------- */
+@keyframes rise { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes pop { 0% { opacity: 0; transform: scale(.9); } 60% { transform: scale(1.03); } 100% { opacity: 1; transform: none; } }
+@keyframes float { 50% { transform: translateY(-6px); } }
+@keyframes zoomIn { from { transform: scale(1.08); } to { transform: none; } }
+
+.page > *, .sheet > * { animation: rise .55s cubic-bezier(.2, .8, .2, 1) both; }
+.page > *:nth-child(2), .sheet > *:nth-child(2) { animation-delay: .05s; }
+.page > *:nth-child(3), .sheet > *:nth-child(3) { animation-delay: .1s; }
+.page > *:nth-child(4), .sheet > *:nth-child(4) { animation-delay: .15s; }
+.page > *:nth-child(5), .sheet > *:nth-child(5) { animation-delay: .2s; }
+.page > *:nth-child(6), .sheet > *:nth-child(6) { animation-delay: .25s; }
+.page > *:nth-child(n+7), .sheet > *:nth-child(n+7) { animation-delay: .3s; }
+.hero h1, .hero-date { animation: rise .6s cubic-bezier(.2, .8, .2, 1) both; }
+.grid .plant-card { animation: pop .5s cubic-bezier(.2, .8, .2, 1) both; }
+.grid .plant-card:nth-child(2) { animation-delay: .06s; }
+.grid .plant-card:nth-child(3) { animation-delay: .12s; }
+.grid .plant-card:nth-child(4) { animation-delay: .18s; }
+.grid .plant-card:nth-child(n+5) { animation-delay: .24s; }
+.wx:not(.skeleton) { animation: pop .5s cubic-bezier(.2, .8, .2, 1) both; }
+.wx:nth-child(2) { animation-delay: .07s; }
+.wx:nth-child(3) { animation-delay: .14s; }
+.wx:nth-child(4) { animation-delay: .21s; }
+.hint { animation: rise .5s cubic-bezier(.2, .8, .2, 1) both; }
+.msg { animation: rise .35s ease-out both; }
+.cover img { animation: zoomIn 1.2s cubic-bezier(.2, .8, .2, 1) both; }
+.empty-icon { animation: float 4s ease-in-out infinite; }
+.steps span { transition: background .4s ease, box-shadow .4s ease; }
+
+/* Bewegte Wettersymbole */
+.wx-rays { animation: spin 18s linear infinite; }
+.wx-drop { animation: drop 1.3s ease-in infinite; }
+@keyframes drop { 0% { transform: translateY(-3px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(5px); opacity: 0; } }
+.wx-flake { animation: flake 2.6s ease-in-out infinite; }
+@keyframes flake { 0% { transform: translateY(-3px); opacity: .2; } 50% { opacity: 1; } 100% { transform: translate(2px, 5px); opacity: .2; } }
+.wx-bolt { animation: bolt 2.4s steps(1) infinite; }
+@keyframes bolt { 0%, 72%, 80%, 100% { opacity: 1; } 76%, 84% { opacity: .15; } }
+.wx-wind { animation: wind 2.2s ease-in-out infinite; }
+@keyframes wind { 50% { transform: translateX(3px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

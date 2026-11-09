@@ -1,6 +1,6 @@
 {
-  "name": "Elfis Garten",
-  "short_name": "Elfis Garten",
+  "name": "Mein Garten",
+  "short_name": "Garten",
   "description": "Pflanzen erkennen, Pflegetipps und Frost-Hinweise",
   "lang": "de",
   "start_url": "./",

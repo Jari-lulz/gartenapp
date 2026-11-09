@@ -85,7 +85,9 @@ function context() {
   return `Heute ist der ${d}.${loc ? ` Der Garten liegt in ${loc}.` : ' Der Garten liegt in Deutschland.'}`;
 }
 
-const SYSTEM = `Du bist ein erfahrener, freundlicher Gärtner und hilfst Elfi, einer Hobbygärtnerin, mit ihrem großen Garten. Sprich sie mit „du“ an.
+// Systemanweisung mit dem auf dem Gerät gespeicherten Namen
+const who = () => settings.name || 'der Gärtnerin bzw. dem Gärtner';
+const systemText = () => `Du bist ein erfahrener, freundlicher Gärtner und hilfst ${settings.name ? `${settings.name}, einer Hobbygärtnerin bzw. einem Hobbygärtner,` : 'einer Hobbygärtnerin bzw. einem Hobbygärtner'} mit dem großen Garten. Sprich mit „du“.
 Schreibe auf Deutsch, in einfachen, kurzen Sätzen, ohne Fachchinesisch (Fachbegriffe kurz erklären).
 Empfiehl bei Krankheiten und Schädlingen immer zuerst biologische Hausmittel, chemische Mittel nur als letzte Möglichkeit.
 Berücksichtige die Jahreszeit. Sei ehrlich, wenn du dir unsicher bist.`;
@@ -104,9 +106,23 @@ const SCHEMA = {
     alternativen: { type: 'ARRAY', items: S, description: 'Andere mögliche Pflanzen, falls unsicher' },
     stadium: { type: 'STRING', description: 'Wachstumsstadium, z. B. Austrieb, Blüte, Fruchtbildung, Ruhephase' },
     zustand: { type: 'STRING', enum: ['gesund', 'leichte Probleme', 'krank'] },
-    zustand_text: { type: 'STRING', description: 'Ein bis zwei Sätze zum Gesundheitszustand' },
+    zustand_text: { type: 'STRING', description: 'Ein Satz zum Gesundheitszustand und zur Form (Wuchs, Schnitt)' },
+    steckbrief: {
+      type: 'OBJECT',
+      description: 'Allgemeine Eigenschaften der Pflanze',
+      properties: {
+        kurz: { type: 'STRING', description: 'Ein bis zwei Sätze: Was ist das für eine Pflanze? (z. B. mehrjährige Staude, Obstgehölz)' },
+        bluetezeit: { type: 'STRING', description: 'Monate und Blütenfarbe, z. B. „Juni bis August, rosa“' },
+        fruechte: { type: 'STRING', description: 'Wann Früchte/Ernte – oder „trägt keine essbaren Früchte“' },
+        aussaat: { type: 'STRING', description: 'Wann und wie aussäen bzw. pflanzen' },
+        vermehrung: { type: 'STRING', description: 'Wie man Ableger/Stecklinge zieht oder teilt – kurze Anleitung in 2–3 Schritten' },
+        wuchs: { type: 'STRING', description: 'Höhe, Breite, ein- oder mehrjährig, winterhart?' },
+      },
+      required: ['kurz', 'bluetezeit', 'fruechte', 'aussaat', 'vermehrung', 'wuchs'],
+    },
     probleme: {
       type: 'ARRAY',
+      description: 'Nur echte, auf dem Foto erkennbare Probleme. Bei einer gesunden Pflanze leer lassen.',
       items: {
         type: 'OBJECT',
         properties: { name: S, anzeichen: S, bio: { type: 'STRING', description: 'Biologische Behandlung / Hausmittel' }, sonst: { type: 'STRING', description: 'Weitere Maßnahmen, falls Bio nicht hilft' } },
@@ -122,7 +138,7 @@ const SCHEMA = {
     frostempfindlich: { type: 'BOOLEAN' },
     giftig: { type: 'STRING', description: 'Giftig für Menschen/Haustiere? Kurz.' },
   },
-  required: ['pflanze_erkannt', 'name', 'botanisch', 'sicherheit', 'stadium', 'zustand', 'zustand_text', 'probleme', 'jetzt_tun', 'pflege', 'frostempfindlich', 'giftig'],
+  required: ['pflanze_erkannt', 'name', 'botanisch', 'sicherheit', 'stadium', 'zustand', 'zustand_text', 'steckbrief', 'probleme', 'jetzt_tun', 'pflege', 'frostempfindlich', 'giftig'],
 };
 
 export async function analyze(photo, knownPlant) {
@@ -130,10 +146,12 @@ export async function analyze(photo, knownPlant) {
     ? `\nHinweis: Das ist vermutlich meine Pflanze „${knownPlant.name}“${knownPlant.botanisch ? ` (${knownPlant.botanisch})` : ''}. Prüfe das trotzdem kurz.`
     : '';
   const data = await generate({
-    systemInstruction: { parts: [{ text: SYSTEM }] },
+    systemInstruction: { parts: [{ text: systemText() }] },
     contents: [{
       role: 'user',
-      parts: [imagePart(photo), { text: `${context()}${hint}\nWelche Pflanze ist das, in welchem Stadium ist sie, ist sie gesund, und wie pflege ich sie?` }],
+      parts: [imagePart(photo), { text: `${context()}${hint}\nWelche Pflanze ist das? Gib mir einen Steckbrief (Blütezeit, Früchte, Aussaat, Vermehrung über Ableger/Stecklinge, Wuchs).
+Prüfe außerdem das Foto genau auf Krankheiten, Schädlinge und schlechte Form (z. B. verkahlt, zu dicht, falsch geschnitten).
+Nur wenn wirklich etwas zu sehen ist: Problem mit Behandlung nennen. Ist die Pflanze gesund, „gesund“ angeben und keine Probleme erfinden.` }],
     }],
     generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA, temperature: 0.3 },
   });
@@ -192,7 +210,7 @@ const PLAN_SCHEMA = {
   required: ['beschreibung', 'flaechen', 'wege', 'objekte'],
 };
 
-// photos: [{ photo, step }] · plan: bestehender Plan oder null · description: Elfis Beschreibung
+// photos: [{ photo, step }] · plan: bestehender Plan oder null · description: Beschreibung des Gartens
 export async function planGarden(photos, description, plan) {
   const H = plan?.height || 100;
   const size = plan?.size ? `Der Garten ist etwa ${plan.size.w} m breit und ${plan.size.h} m tief (100 Einheiten = ${plan.size.w} m).` : '';
@@ -205,7 +223,7 @@ export async function planGarden(photos, description, plan) {
     ? `\nEs gibt schon einen Plan. Ergänze und verbessere ihn mit den neuen Fotos:
 ${planForPrompt(plan)}
 - Gib ALLE Elemente zurück, die es weiterhin gibt. Bestehende Elemente behalten ihre id.
-- Elemente mit "fest": true hat Elfi selbst bestätigt oder vermessen: Lage und Größe NICHT ändern, sie dienen dir als sichere Orientierung.
+- Elemente mit "fest": true hat ${who()} selbst bestätigt oder vermessen: Lage und Größe NICHT ändern, sie dienen dir als sichere Orientierung.
 - Neue Elemente bekommen keine id.`
     : '';
   const prompt = `Das sind ${photos.length} Fotos von einem Rundgang durch meinen Garten. Er ist eher naturbelassen und gemischt – keine ordentlichen Reihen, sondern viele verschiedene Pflanzen, ein paar Bäume, Wege und Gebäude wie Wohnhaus und Stallungen.
@@ -219,7 +237,7 @@ Zeichne daraus einen schematischen Lageplan von oben:
 Es muss nicht maßstabsgetreu sein, aber die Lage zueinander soll stimmen.${update}`;
   parts.push({ text: `${context()}\n${prompt}` });
   const data = await generate({
-    systemInstruction: { parts: [{ text: SYSTEM }] },
+    systemInstruction: { parts: [{ text: systemText() }] },
     contents: [{ role: 'user', parts }],
     generationConfig: { responseMimeType: 'application/json', responseSchema: PLAN_SCHEMA, temperature: 0.3 },
   });
@@ -239,7 +257,7 @@ export async function ask(photo, analysis, history, question) {
     { role: 'user', parts: [{ text: question }] },
   ];
   const data = await generate({
-    systemInstruction: { parts: [{ text: SYSTEM + '\nAntworte kurz (höchstens etwa 120 Wörter). Einfache Aufzählungen mit "- " sind erlaubt.' }] },
+    systemInstruction: { parts: [{ text: systemText() + '\nAntworte kurz (höchstens etwa 120 Wörter). Einfache Aufzählungen mit "- " sind erlaubt.' }] },
     contents,
     generationConfig: { temperature: 0.5 },
   });
